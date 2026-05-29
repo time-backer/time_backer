@@ -16,7 +16,7 @@ from settings import (
 class GameScene:
     def __init__(self, stage_num: int = 1) -> None:
         self._stage_num = stage_num
-        self._stage = Stage()
+        self._stage = Stage(stage_num=stage_num)
 
         sx, sy = self._stage.get_player_start()
         self._player = Player(sx, sy)
@@ -229,12 +229,17 @@ class GameScene:
     def _draw_hud(self, surface: pygame.Surface) -> None:
         pygame.draw.rect(surface, (10, 10, 25), (0, 0, SCREEN_WIDTH, 36))
 
+        # Stage number (left)
+        stage_text = f"STAGE {self._stage_num}"
+        stage_surf = self._font_hud.render(stage_text, True, CYAN)
+        surface.blit(stage_surf, (10, 8))
+
         # HP
         hp_label = self._font_hud.render("HP:", True, WHITE)
-        surface.blit(hp_label, (10, 8))
+        surface.blit(hp_label, (120, 8))
         for i in range(Player.MAX_HP):
             col = RED if i < self._player.hp else (60, 60, 60)
-            pygame.draw.rect(surface, col, (45 + i * 22, 10, 16, 16), border_radius=3)
+            pygame.draw.rect(surface, col, (155 + i * 22, 10, 16, 16), border_radius=3)
 
         # Rewind count (center)
         if self._rewinding:

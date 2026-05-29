@@ -18,7 +18,7 @@ def main() -> None:
         "end":   None,
     }
     current = "start"
-    selected_stage = 1  # 선택된 스테이지
+    current_stage = 1  # 현재 진행 중인 스테이지 (1~6)
 
     while True:
         scene = scenes[current]
@@ -36,44 +36,47 @@ def main() -> None:
                 pygame.quit()
                 sys.exit()
             elif result == "game":
+                # 게임 시작 시 스테이지 1부터
+                current_stage = 1
+                scenes["game"] = GameScene(stage_num=current_stage)
                 current = "game"
 
         update_result = scene.update() if hasattr(scene, "update") else None
 
-        if update_result in ("clear", "gameover"):
-            victory = update_result == "clear"
+        if update_result == "clear":
+            # 스테이지 클리어
             game_scene = scenes["game"]
             clear_time = game_scene.get_clear_time()
             rewind_used = game_scene.get_rewind_used()
-            scenes["end"] = EndScene(victory, clear_time, rewind_used)
+            
+            if current_stage < 6:
+                # 다음 스테이지로
+                current_stage += 1
+                scenes["game"] = GameScene(stage_num=current_stage)
+                current = "game"
+            else:
+                # 6스테이지 클리어 시 엔딩
+                scenes["end"] = EndScene(True, clear_time, rewind_used)
+                current = "end"
+        elif update_result == "gameover":
+            # 게임오버
+            game_scene = scenes["game"]
+            clear_time = game_scene.get_clear_time()
+            rewind_used = game_scene.get_rewind_used()
+            scenes["end"] = EndScene(False, clear_time, rewind_used)
             current = "end"
-        elif update_result == "start":
-            scenes["start"] = StartScene()
-            scenes["game"]  = GameScene(stage_num=selected_stage)
-            current = "start"
 
         scene = scenes[current]
         scene.draw(screen)
 
-        # ENTER to continue from in-game outcome overlay
-        if current == "game" and scene._outcome:  # type: ignore[attr-defined]
-            pressed = pygame.key.get_pressed()
-            if pressed[pygame.K_RETURN] or pressed[pygame.K_SPACE]:
-                outcome = scene._outcome  # type: ignore[attr-defined]
-                if outcome in ("clear", "gameover"):
-                    victory = outcome == "clear"
-                    clear_time = scene.get_clear_time()  # type: ignore
-                    rewind_used = scene.get_rewind_used()  # type: ignore
-                    scenes["end"] = EndScene(victory, clear_time, rewind_used)
-                    current = "end"
-
         # EndScene → back to title
         if current == "end":
-            end_result = scene.handle_event(pygame.event.Event(pygame.NOEVENT))
             pressed = pygame.key.get_pressed()
             if pressed[pygame.K_RETURN] or pressed[pygame.K_SPACE]:
+                # 타이틀로 돌아갈 때 스테이지 초기화
+                current_stage = 1
                 scenes["start"] = StartScene()
-                scenes["game"]  = GameScene(stage_num=selected_stage)
+                scenes["game"] = GameScene(stage_num=1)
                 current = "start"
 
         pygame.display.flip()
