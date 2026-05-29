@@ -3,6 +3,8 @@ from settings import TILE_SIZE, GRAY, SPIKE_COL, EXIT_COL
 
 
 class Tile:
+    _exit_font = None  # 클래스 변수로 폰트 캐싱
+    
     def __init__(self, col: int, row: int, tile_type: str) -> None:
         self.col = col
         self.row = row
@@ -28,7 +30,9 @@ class Tile:
         elif self.tile_type == "exit":
             pygame.draw.rect(surface, EXIT_COL, draw_rect)
             pygame.draw.rect(surface, (200, 255, 200), draw_rect, 2)
-            font = pygame.font.SysFont(None, 18)
-            label = font.render("EXIT", True, (0, 0, 0))
+            # 폰트 캐싱 (최초 1회만 생성)
+            if Tile._exit_font is None:
+                Tile._exit_font = pygame.font.SysFont(None, 18)
+            label = Tile._exit_font.render("EXIT", True, (0, 0, 0))
             surface.blit(label, (draw_rect.centerx - label.get_width() // 2,
                                  draw_rect.centery - label.get_height() // 2))

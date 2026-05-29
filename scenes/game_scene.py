@@ -30,6 +30,7 @@ class GameScene:
         self._rewind_count = MAX_REWIND_COUNT  # 남은 역행 횟수
         self._frame = 0
         self._start_time = pygame.time.get_ticks()  # 클리어 타임 측정
+        self._paused_time = 0  # 역행 중 정지된 시간
 
         self._flash_timer = 0
         self._flash_full = False
@@ -37,6 +38,7 @@ class GameScene:
         # 시간 역행 애니메이션
         self._rewinding = False
         self._rewind_target_frames = 0
+        self._rewind_start_time = 0
 
         self._font_hud = pygame.font.SysFont(None, 28)
         self._font_big = pygame.font.SysFont(None, 52)
@@ -47,6 +49,18 @@ class GameScene:
     # ------------------------------------------------------------------
     def reset(self) -> None:
         self.__init__(self._stage_num)
+
+    # ------------------------------------------------------------------
+    # Getters for external access
+    # ------------------------------------------------------------------
+    def get_clear_time(self) -> int:
+        """클리어 타임 반환 (초 단위)"""
+        elapsed = pygame.time.get_ticks() - self._start_time - self._paused_time
+        return elapsed // 1000
+    
+    def get_rewind_used(self) -> int:
+        """사용한 역행 횟수 반환"""
+        return MAX_REWIND_COUNT - self._rewind_count
 
     # ------------------------------------------------------------------
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
@@ -97,11 +111,8 @@ class GameScene:
 
         # death handling
         if self._player.is_dead() or self._player.y > self._stage.pixel_height + 100:
-            if self._rewind_count <= 0:
-                self._outcome = "gameover"
-                return self._outcome
-            # 자동 역행
-            self._rewind_one()
+            self._outcome = "gameover"
+            return self._outcome
 
         # camera
         target_cx = int(self._player.x) - SCREEN_WIDTH // 3
@@ -152,6 +163,7 @@ class GameScene:
         self._rewind_count -= 1
         self._flash_timer = REWIND_FLASH_DURATION
         self._flash_full = False
+        self._rewind_start_time = pygame.time.get_ticks()  # 역행 시작 시간 기록
 
     def _rewind_all(self) -> None:
         """X키: 시작 위치로 완전 복귀 (애니메이션)"""
@@ -166,11 +178,14 @@ class GameScene:
         self._rewind_count -= 1
         self._flash_timer = REWIND_FLASH_DURATION
         self._flash_full = True
+        self._rewind_start_time = pygame.time.get_ticks()  # 역행 시작 시간 기록
     
     def _process_rewind(self) -> None:
         """매 프레임마다 호출되어 역행 애니메이션 처리"""
         if self._rewind_target_frames <= 0:
             self._rewinding = False
+            # 역행 종료 시 정지된 시간 누적
+            self._paused_time += pygame.time.get_ticks() - self._rewind_start_time
             return
         
         # 빠르게 되감기 (매 프레임마다 여러 프레임 pop)
@@ -232,8 +247,8 @@ class GameScene:
         rw_surf = self._font_hud.render(rewind_text, True, rewind_col)
         surface.blit(rw_surf, (SCREEN_WIDTH // 2 - rw_surf.get_width() // 2, 8))
 
-        # Time
-        elapsed = (pygame.time.get_ticks() - self._start_time) // 1000
+        # Time (역행 중 정지된 시간 제외)
+        elapsed = self.get_clear_time()
         time_text = f"TIME: {elapsed}s"
         time_surf = self._font_hud.render(time_text, True, YELLOW)
         surface.blit(time_surf, (SCREEN_WIDTH - time_surf.get_width() - 10, 8))

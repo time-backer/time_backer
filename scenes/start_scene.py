@@ -1,7 +1,7 @@
 import pygame
 from settings import (
     SCREEN_WIDTH, SCREEN_HEIGHT,
-    WHITE, CYAN, YELLOW, SKY, BLUE,
+    WHITE, CYAN, YELLOW, SKY,
 )
 
 
@@ -48,7 +48,3 @@ class StartScene:
             surface.blit(k_surf, (x_off, y))
             surface.blit(d_surf, (x_off + k_surf.get_width(), y))
             y += 34
-
-        # decorative player rect
-        px = SCREEN_WIDTH // 2 - 12 + int(30 * pygame.math.Vector2(1, 0).rotate(self._tick).x)
-        pygame.draw.rect(surface, BLUE, (px, 400, 24, 30), border_radius=4)

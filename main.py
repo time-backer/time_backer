@@ -43,8 +43,8 @@ def main() -> None:
         if update_result in ("clear", "gameover"):
             victory = update_result == "clear"
             game_scene = scenes["game"]
-            clear_time = (pygame.time.get_ticks() - game_scene._start_time) // 1000  # type: ignore
-            rewind_used = 5 - game_scene._rewind_count  # type: ignore
+            clear_time = game_scene.get_clear_time()
+            rewind_used = game_scene.get_rewind_used()
             scenes["end"] = EndScene(victory, clear_time, rewind_used)
             current = "end"
         elif update_result == "start":
@@ -62,8 +62,8 @@ def main() -> None:
                 outcome = scene._outcome  # type: ignore[attr-defined]
                 if outcome in ("clear", "gameover"):
                     victory = outcome == "clear"
-                    clear_time = (pygame.time.get_ticks() - scene._start_time) // 1000  # type: ignore
-                    rewind_used = 5 - scene._rewind_count  # type: ignore
+                    clear_time = scene.get_clear_time()  # type: ignore
+                    rewind_used = scene.get_rewind_used()  # type: ignore
                     scenes["end"] = EndScene(victory, clear_time, rewind_used)
                     current = "end"
 

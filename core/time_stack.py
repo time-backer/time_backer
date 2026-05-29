@@ -3,11 +3,15 @@ from core.game_state import GameState
 
 
 class TimeStack:
-    def __init__(self) -> None:
+    def __init__(self, max_size: int = 180) -> None:
         self._history: list[GameState] = []
+        self._max_size = max_size  # 최대 180프레임 (3초)
 
     def push(self, state: GameState) -> None:
         self._history.append(state.copy())
+        # 최대 크기 초과 시 가장 오래된 것 제거 (FIFO for oldest)
+        if len(self._history) > self._max_size:
+            self._history.pop(0)
 
     def pop(self) -> Optional[GameState]:
         if self._history:
@@ -21,23 +25,6 @@ class TimeStack:
 
     def pop_all(self) -> Optional[GameState]:
         if self._history:
-            oldest = self._history[0]
-            self._history.clear()
-            return oldest
-        return None
-
-    def rewind_by_frames(self, frames: int) -> Optional[GameState]:
-        """
-        특정 프레임 수만큼 과거로 되돌림
-        frames: 되돌릴 프레임 수 (예: 180 = 3초 전)
-        """
-        if len(self._history) >= frames:
-            # frames만큼 pop하고 마지막 상태 반환
-            for _ in range(frames - 1):
-                self._history.pop()
-            return self._history.pop() if self._history else None
-        elif self._history:
-            # 저장된 상태가 frames보다 적으면 가장 오래된 상태로
             oldest = self._history[0]
             self._history.clear()
             return oldest
