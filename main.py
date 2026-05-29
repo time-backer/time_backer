@@ -50,12 +50,17 @@ def main() -> None:
             rewind_used = game_scene.get_rewind_used()
             
             if current_stage < 6:
-                # 다음 스테이지로
+                # 다음 스테이지로 (1~5)
                 current_stage += 1
                 scenes["game"] = GameScene(stage_num=current_stage)
                 current = "game"
+            elif current_stage == 6:
+                # 6스테이지 클리어 → 보스 스테이지(7)
+                current_stage = 7
+                scenes["game"] = GameScene(stage_num=7)
+                current = "game"
             else:
-                # 6스테이지 클리어 시 엔딩
+                # 보스 스테이지(7) 클리어 → 엔딩
                 scenes["end"] = EndScene(True, clear_time, rewind_used)
                 current = "end"
         elif update_result == "gameover":

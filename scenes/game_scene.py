@@ -6,7 +6,9 @@ from core.time_stack import TimeStack
 from entities.player import Player
 from entities.enemy import Enemy
 from entities.absorbing_enemy import AbsorbingEnemy
+from entities.boss import Boss
 from world.stage import Stage
+from world.boss_stage import BossStage
 from settings import (
     SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE,
     REWIND_FLASH_DURATION, REWIND_FRAMES, MAX_REWIND_COUNT, REWIND_SPEED,
@@ -17,7 +19,12 @@ from settings import (
 class GameScene:
     def __init__(self, stage_num: int = 1) -> None:
         self._stage_num = stage_num
-        self._stage = Stage(stage_num=stage_num)
+        
+        # 보스 스테이지 (7) vs 일반 스테이지 (1~6)
+        if stage_num == 7:
+            self._stage = BossStage()
+        else:
+            self._stage = Stage(stage_num=stage_num)
 
         sx, sy = self._stage.get_player_start()
         self._player = Player(sx, sy)
@@ -32,6 +39,12 @@ class GameScene:
         if stage_num == 5:
             # 중앙에 흡수 적 배치
             self._absorbing_enemy = AbsorbingEnemy(12 * TILE_SIZE, 5 * TILE_SIZE)
+        
+        # Stage 7: 보스 추가
+        self._boss = None
+        if stage_num == 7:
+            bx, by = self._stage.get_boss_position()
+            self._boss = Boss(bx, by)
 
         self._time_stack = TimeStack()
         self._rewind_count = MAX_REWIND_COUNT  # 남은 역행 횟수
@@ -107,10 +120,15 @@ class GameScene:
         # 흡수 적 업데이트
         if self._absorbing_enemy:
             self._absorbing_enemy.update(self._stage.ground_tiles, self._stage.pixel_width)
+        
+        # 보스 업데이트
+        if self._boss:
+            self._boss.update()
 
         self._check_spike_collisions()
         self._check_enemy_collisions()
         self._check_absorbing_enemy_collision()
+        self._check_boss_collision()
         
         # 스위치 체크 (Stage 2)
         self._stage.check_switches(self._player.rect)
@@ -119,7 +137,12 @@ class GameScene:
             self._flash_timer -= 1
 
         # --- win / lose ---
-        # reach exit
+        # 보스 스테이지: 보스 처치 시 클리어
+        if self._boss and not self._boss.alive:
+            self._outcome = "clear"
+            return self._outcome
+        
+        # 일반 스테이지: 출구 도달 시 클리어
         if self._stage.is_clear(self._player.rect):
             self._outcome = "clear"
             return self._outcome
@@ -144,6 +167,10 @@ class GameScene:
         # 흡수 적 렌더링
         if self._absorbing_enemy:
             self._absorbing_enemy.draw(surface, self._camera_x)
+        
+        # 보스 렌더링
+        if self._boss:
+            self._boss.draw(surface, self._camera_x)
 
         self._player.draw(surface, self._camera_x)
 
@@ -184,6 +211,10 @@ class GameScene:
         # 흡수 적이 있으면 HP 증가
         if self._absorbing_enemy and self._absorbing_enemy.alive:
             self._absorbing_enemy.absorb_rewind()
+        
+        # 보스 타임 리버스 취소 (Phase 3 핵심 메커니즘)
+        if self._boss and self._boss.reversing:
+            self._boss.cancel_reverse()
         
         # 역행 애니메이션 시작
         self._rewinding = True
@@ -262,6 +293,21 @@ class GameScene:
             if self._player.vy > 0 and pr.bottom < self._absorbing_enemy.rect.centery + 10:
                 self._absorbing_enemy.take_damage()
                 self._player.vy = -8
+            else:
+                # 옆에서 부딪히면 플레이어 피격
+                self._player.take_damage()
+    
+    def _check_boss_collision(self) -> None:
+        """보스 충돌 처리"""
+        if not self._boss or not self._boss.alive:
+            return
+        
+        pr = self._player.rect
+        if pr.colliderect(self._boss.rect):
+            # 위에서 밟으면 보스에게 데미지
+            if self._player.vy > 0 and pr.bottom < self._boss.rect.centery + 10:
+                self._boss.take_damage(1)
+                self._player.vy = -10  # 높게 튕김
             else:
                 # 옆에서 부딪히면 플레이어 피격
                 self._player.take_damage()
