@@ -5,6 +5,7 @@ from core.game_state import GameState
 from core.time_stack import TimeStack
 from entities.player import Player
 from entities.enemy import Enemy
+from entities.absorbing_enemy import AbsorbingEnemy
 from world.stage import Stage
 from settings import (
     SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE,
@@ -25,6 +26,12 @@ class GameScene:
             Enemy(x, y, idx)
             for idx, (x, y) in enumerate(self._stage.get_enemy_spawns())
         ]
+        
+        # Stage 5: 흡수 적 추가
+        self._absorbing_enemy = None
+        if stage_num == 5:
+            # 중앙에 흡수 적 배치
+            self._absorbing_enemy = AbsorbingEnemy(12 * TILE_SIZE, 5 * TILE_SIZE)
 
         self._time_stack = TimeStack()
         self._rewind_count = MAX_REWIND_COUNT  # 남은 역행 횟수
@@ -96,9 +103,14 @@ class GameScene:
 
         for enemy in self._enemies:
             enemy.update(self._stage.ground_tiles, self._stage.pixel_width)
+        
+        # 흡수 적 업데이트
+        if self._absorbing_enemy:
+            self._absorbing_enemy.update(self._stage.ground_tiles, self._stage.pixel_width)
 
         self._check_spike_collisions()
         self._check_enemy_collisions()
+        self._check_absorbing_enemy_collision()
         
         # 스위치 체크 (Stage 2)
         self._stage.check_switches(self._player.rect)
@@ -128,6 +140,10 @@ class GameScene:
 
         for enemy in self._enemies:
             enemy.draw(surface, self._camera_x)
+        
+        # 흡수 적 렌더링
+        if self._absorbing_enemy:
+            self._absorbing_enemy.draw(surface, self._camera_x)
 
         self._player.draw(surface, self._camera_x)
 
@@ -164,6 +180,10 @@ class GameScene:
             return
         if len(self._time_stack) == 0:
             return
+        
+        # 흡수 적이 있으면 HP 증가
+        if self._absorbing_enemy and self._absorbing_enemy.alive:
+            self._absorbing_enemy.absorb_rewind()
         
         # 역행 애니메이션 시작
         self._rewinding = True
@@ -230,6 +250,21 @@ class GameScene:
                     self._player.vy = -8
                 else:
                     self._player.take_damage()
+    
+    def _check_absorbing_enemy_collision(self) -> None:
+        """흡수 적 충돌 처리"""
+        if not self._absorbing_enemy or not self._absorbing_enemy.alive:
+            return
+        
+        pr = self._player.rect
+        if pr.colliderect(self._absorbing_enemy.rect):
+            # 위에서 밟으면 데미지
+            if self._player.vy > 0 and pr.bottom < self._absorbing_enemy.rect.centery + 10:
+                self._absorbing_enemy.take_damage()
+                self._player.vy = -8
+            else:
+                # 옆에서 부딪히면 플레이어 피격
+                self._player.take_damage()
 
     # ------------------------------------------------------------------
     # HUD
