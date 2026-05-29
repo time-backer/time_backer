@@ -99,6 +99,9 @@ class GameScene:
 
         self._check_spike_collisions()
         self._check_enemy_collisions()
+        
+        # 스위치 체크 (Stage 2)
+        self._stage.check_switches(self._player.rect)
 
         if self._flash_timer > 0:
             self._flash_timer -= 1
@@ -142,6 +145,7 @@ class GameScene:
     def _push_snapshot(self) -> None:
         state = self._player.capture_state(0)
         state.enemies = [e.capture_state() for e in self._enemies]
+        state.switch_states = [s.activated for s in self._stage.switch_tiles]
         self._time_stack.push(state)
 
     def _apply_state(self, state: GameState) -> None:
@@ -149,6 +153,10 @@ class GameScene:
         for i, es in enumerate(state.enemies):
             if i < len(self._enemies):
                 self._enemies[i].apply_state(es)
+        # 스위치 상태 복원
+        for i, activated in enumerate(state.switch_states):
+            if i < len(self._stage.switch_tiles):
+                self._stage.switch_tiles[i].activated = activated
 
     def _rewind_one(self) -> None:
         """Z키: 3초 전으로 역행 (애니메이션)"""

@@ -1,15 +1,17 @@
 import pygame
-from settings import TILE_SIZE, GRAY, SPIKE_COL, EXIT_COL
+from settings import TILE_SIZE, GRAY, SPIKE_COL, EXIT_COL, YELLOW, GREEN
 
 
 class Tile:
     _exit_font = None  # 클래스 변수로 폰트 캐싱
+    _switch_font = None
     
     def __init__(self, col: int, row: int, tile_type: str) -> None:
         self.col = col
         self.row = row
-        self.tile_type = tile_type  # "ground" | "spike" | "exit"
+        self.tile_type = tile_type  # "ground" | "spike" | "exit" | "switch_a" | "switch_b"
         self.rect = pygame.Rect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
+        self.activated = False  # 스위치 활성화 상태
 
     def get_rect(self) -> pygame.Rect:
         return self.rect
@@ -36,3 +38,16 @@ class Tile:
             label = Tile._exit_font.render("EXIT", True, (0, 0, 0))
             surface.blit(label, (draw_rect.centerx - label.get_width() // 2,
                                  draw_rect.centery - label.get_height() // 2))
+        elif self.tile_type in ("switch_a", "switch_b"):
+            # 스위치 렌더링
+            base_color = GRAY if not self.activated else GREEN
+            pygame.draw.rect(surface, base_color, draw_rect)
+            pygame.draw.circle(surface, YELLOW if not self.activated else (255, 255, 100),
+                             (draw_rect.centerx, draw_rect.centery), 10)
+            # 스위치 라벨
+            if Tile._switch_font is None:
+                Tile._switch_font = pygame.font.SysFont(None, 20)
+            label_text = "A" if self.tile_type == "switch_a" else "B"
+            label = Tile._switch_font.render(label_text, True, (0, 0, 0))
+            surface.blit(label, (draw_rect.centerx - label.get_width() // 2,
+                               draw_rect.centery - label.get_height() // 2))

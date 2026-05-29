@@ -138,6 +138,7 @@ class Stage:
         self.ground_tiles: List[Tile] = []
         self.spike_tiles: List[Tile] = []
         self.exit_tiles: List[Tile] = []
+        self.switch_tiles: List[Tile] = []  # A, B 스위치
         self._parse()
 
     def _parse(self) -> None:
@@ -155,6 +156,14 @@ class Stage:
                     t = Tile(col_idx, row_idx, "exit")
                     self.tiles.append(t)
                     self.exit_tiles.append(t)
+                elif cell == "A":
+                    t = Tile(col_idx, row_idx, "switch_a")
+                    self.tiles.append(t)
+                    self.switch_tiles.append(t)
+                elif cell == "B":
+                    t = Tile(col_idx, row_idx, "switch_b")
+                    self.tiles.append(t)
+                    self.switch_tiles.append(t)
 
     @property
     def pixel_width(self) -> int:
@@ -173,8 +182,25 @@ class Stage:
             (14 * TILE_SIZE, (len(self._map) - 2) * TILE_SIZE - TILE_SIZE),
         ]
 
+    def check_switches(self, player_rect: pygame.Rect) -> None:
+        """플레이어가 스위치를 밟으면 활성화"""
+        for switch in self.switch_tiles:
+            if player_rect.colliderect(switch.rect):
+                switch.activated = True
+    
+    def are_all_switches_activated(self) -> bool:
+        """모든 스위치가 활성화되었는지 확인"""
+        if not self.switch_tiles:
+            return True  # 스위치가 없으면 항상 통과
+        return all(s.activated for s in self.switch_tiles)
+    
     def is_clear(self, player_rect: pygame.Rect) -> bool:
-        return any(player_rect.colliderect(t.get_rect()) for t in self.exit_tiles)
+        """출구 도달 + 스위치 조건 확인"""
+        exit_reached = any(player_rect.colliderect(t.get_rect()) for t in self.exit_tiles)
+        # Stage 2는 스위치 조건 필요
+        if self.stage_num == 2:
+            return exit_reached and self.are_all_switches_activated()
+        return exit_reached
 
     def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
         surface.fill(SKY)
