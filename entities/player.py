@@ -6,6 +6,7 @@ from settings import (
     TILE_SIZE, MOVE_SPEED, JUMP_FORCE, GRAVITY,
     BLUE, WHITE, RED,
 )
+import asset_loader as A
 
 
 class Player:
@@ -22,6 +23,8 @@ class Player:
         self.hp = self.MAX_HP
         self.facing = 1  # 1=right, -1=left
         self._hurt_timer = 0  # invincibility frames after hit
+        self._anim_state = "idle"
+        self._state_start = 0
 
     @property
     def rect(self) -> pygame.Rect:
@@ -119,29 +122,37 @@ class Player:
     # ------------------------------------------------------------------
     # Draw
     # ------------------------------------------------------------------
-    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
-        draw_x = int(self.x) - camera_x
-        draw_y = int(self.y)
-
+    def draw(self, surface: pygame.Surface, camera_x: int = 0,
+             rewinding: bool = False) -> None:
         # blink when hurt
         if self._hurt_timer > 0 and (self._hurt_timer // 6) % 2 == 0:
             return
 
-        body_col = BLUE
-        pygame.draw.rect(surface, body_col,
-                         (draw_x, draw_y, self.WIDTH, self.HEIGHT), border_radius=4)
+        draw_x = int(self.x) - camera_x
+        draw_y = int(self.y)
 
-        # eyes
-        eye_y = draw_y + 8
-        if self.facing == 1:
-            pygame.draw.circle(surface, WHITE, (draw_x + 17, eye_y), 4)
-            pygame.draw.circle(surface, (0, 0, 0), (draw_x + 18, eye_y), 2)
-        else:
-            pygame.draw.circle(surface, WHITE, (draw_x + 7, eye_y), 4)
-            pygame.draw.circle(surface, (0, 0, 0), (draw_x + 6, eye_y), 2)
+        new_state = (
+            "rewind" if rewinding
+            else "jump" if not self.on_ground
+            else "run" if self.vx != 0
+            else "idle"
+        )
+        if new_state != self._anim_state:
+            self._anim_state = new_state
+            self._state_start = pygame.time.get_ticks()
 
-        # HP pips above head
-        for i in range(self.MAX_HP):
-            col = RED if i < self.hp else (60, 60, 60)
-            pygame.draw.circle(surface, col,
-                                (draw_x + 4 + i * 10, draw_y - 8), 4)
+        frame_map = {
+            "idle":   A.player_idle,
+            "run":    A.player_run,
+            "jump":   A.player_jump,
+            "rewind": A.player_rewind,
+        }
+        frames = frame_map[self._anim_state]
+        elapsed = pygame.time.get_ticks() - self._state_start
+        frame = frames[(elapsed // 150) % len(frames)]
+
+        if self.facing == -1:
+            frame = pygame.transform.flip(frame, True, False)
+
+        # center 32×32 sprite on the 24×30 hitbox
+        surface.blit(frame, (draw_x - 4, draw_y - 1))

@@ -1,6 +1,7 @@
 import pygame
 from typing import List
 from settings import TILE_SIZE, RED, ORANGE, PURPLE, WHITE
+import asset_loader as A
 
 
 class Boss:
@@ -23,7 +24,7 @@ class Boss:
         
         # Phase 시스템
         self.phase = 1  # 1, 2, 3
-        
+
         # 패턴 관리
         self.pattern_timer = 0
         self.pattern_cooldown = 180  # 3초마다 패턴
@@ -73,7 +74,7 @@ class Boss:
         """보스 AI 업데이트"""
         if not self.alive:
             return
-        
+
         # 쿨다운 감소
         if self.reverse_cooldown > 0:
             self.reverse_cooldown -= 1
@@ -120,37 +121,27 @@ class Boss:
         """보스 렌더링"""
         if not self.alive:
             return
-        
+
         draw_x = int(self.x) - camera_x
         draw_y = int(self.y)
-        
-        # 보스 몸체
-        color = self.get_phase_color()
-        
-        # 타임 리버스 중이면 깜빡임
+
+        # Phase에 따라 스프라이트 선택
+        if self.phase == 1:
+            frames = A.boss_phase1
+        elif self.phase == 2:
+            frames = A.boss_phase2
+        else:
+            frames = A.boss_phase3
+
+        speed = 100 if not self.reversing else 50
+        frame = frames[(pygame.time.get_ticks() // speed) % len(frames)]
+
         if self.reversing and (pygame.time.get_ticks() // 100) % 2 == 0:
-            color = PURPLE
-        
-        # 육각형 형태로 그리기
-        center_x = draw_x + self.WIDTH // 2
-        center_y = draw_y + self.HEIGHT // 2
-        radius = self.WIDTH // 2
-        
-        points = []
-        for i in range(6):
-            angle = i * 60 * 3.14159 / 180
-            px = center_x + radius * pygame.math.Vector2(1, 0).rotate_rad(angle).x
-            py = center_y + radius * pygame.math.Vector2(1, 0).rotate_rad(angle).y
-            points.append((px, py))
-        
-        pygame.draw.polygon(surface, color, points)
-        pygame.draw.polygon(surface, WHITE, points, 3)
-        
-        # 눈 (중앙)
-        eye_size = 8
-        pygame.draw.circle(surface, WHITE, (center_x, center_y), eye_size)
-        pygame.draw.circle(surface, color, (center_x, center_y), eye_size - 3)
-        
+            frame = frame.copy()
+            frame.set_alpha(100)
+
+        surface.blit(frame, (draw_x, draw_y))
+
         # HP 바 (화면 하단 중앙)
         self._draw_hp_bar(surface)
     

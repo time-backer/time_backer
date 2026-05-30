@@ -1,5 +1,6 @@
 import sys
 import pygame
+import asset_loader
 from settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE
 from scenes.start_scene import StartScene
 from scenes.game_scene import GameScene
@@ -9,6 +10,7 @@ from scenes.end_scene import EndScene
 def main() -> None:
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    asset_loader.load()
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()
 

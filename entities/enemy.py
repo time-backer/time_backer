@@ -3,6 +3,7 @@ from typing import List
 from core.game_state import EnemyState
 from world.tile import Tile
 from settings import TILE_SIZE, ORANGE, GRAVITY
+import asset_loader as A
 
 
 class Enemy:
@@ -65,16 +66,9 @@ class Enemy:
             return
         dx = int(self.x) - camera_x
         dy = int(self.y)
-        pygame.draw.rect(surface, ORANGE,
-                         (dx, dy, self.WIDTH, self.HEIGHT), border_radius=3)
-        # angry eyes
-        eye_y = dy + 8
-        if self.direction == 1:
-            pygame.draw.circle(surface, (255, 255, 255), (dx + 17, eye_y), 4)
-            pygame.draw.circle(surface, (0, 0, 0), (dx + 18, eye_y), 2)
-        else:
-            pygame.draw.circle(surface, (255, 255, 255), (dx + 7, eye_y), 4)
-            pygame.draw.circle(surface, (0, 0, 0), (dx + 6, eye_y), 2)
-        # frown
-        pygame.draw.arc(surface, (0, 0, 0),
-                        (dx + 6, dy + 16, 12, 8), 3.14, 6.28, 2)
+
+        frame = A.patrol[(pygame.time.get_ticks() // 150) % len(A.patrol)]
+        if self.direction == -1:
+            frame = pygame.transform.flip(frame, True, False)
+        # center 32×32 sprite on the 24×28 hitbox
+        surface.blit(frame, (dx - 4, dy - 2))

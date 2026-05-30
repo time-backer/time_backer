@@ -14,6 +14,7 @@ from settings import (
     REWIND_FLASH_DURATION, REWIND_FRAMES, MAX_REWIND_COUNT, REWIND_SPEED,
     WHITE, YELLOW, RED, CYAN, BLACK, SKY,
 )
+import asset_loader as A
 
 
 class GameScene:
@@ -172,7 +173,7 @@ class GameScene:
         if self._boss:
             self._boss.draw(surface, self._camera_x)
 
-        self._player.draw(surface, self._camera_x)
+        self._player.draw(surface, self._camera_x, rewinding=self._rewinding)
 
         self._draw_hud(surface)
 
@@ -323,12 +324,12 @@ class GameScene:
         stage_surf = self._font_hud.render(stage_text, True, CYAN)
         surface.blit(stage_surf, (10, 8))
 
-        # HP
+        # HP (스프라이트 아이콘)
         hp_label = self._font_hud.render("HP:", True, WHITE)
-        surface.blit(hp_label, (120, 8))
+        surface.blit(hp_label, (120, 6))
         for i in range(Player.MAX_HP):
-            col = RED if i < self._player.hp else (60, 60, 60)
-            pygame.draw.rect(surface, col, (155 + i * 22, 10, 16, 16), border_radius=3)
+            icon = A.hud_hp_full if i < self._player.hp else A.hud_hp_empty
+            surface.blit(icon, (152 + i * 26, 6))
 
         # Rewind count (center)
         if self._rewinding:
@@ -353,19 +354,19 @@ class GameScene:
     def _draw_rewind_flash(self, surface: pygame.Surface) -> None:
         max_frames = REWIND_FLASH_DURATION
         ratio = self._flash_timer / max_frames
-        alpha = int(160 * ratio)
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        if self._flash_full:
-            overlay.fill((80, 40, 180, alpha))
-        else:
-            overlay.fill((40, 80, 220, alpha))
+        alpha = int(200 * ratio)
+
+        # rewind_overlay.png를 alpha 합성으로 표시
+        overlay = A.rewind_overlay.copy()
+        overlay.set_alpha(alpha)
         surface.blit(overlay, (0, 0))
 
+        # 배너 이미지를 화면 중앙에 표시
         if self._flash_timer > max_frames // 2:
-            text = "<<< FULL REWIND" if self._flash_full else "<< REWIND"
-            label = self._font_big.render(text, True, (200, 220, 255))
-            surface.blit(label, (SCREEN_WIDTH // 2 - label.get_width() // 2,
-                                  SCREEN_HEIGHT // 2 - label.get_height() // 2))
+            banner = A.hud_rewind_banner
+            bx = SCREEN_WIDTH // 2 - banner.get_width() // 2
+            by = SCREEN_HEIGHT // 2 - banner.get_height() // 2
+            surface.blit(banner, (bx, by))
 
     def _draw_outcome_overlay(self, surface: pygame.Surface) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)

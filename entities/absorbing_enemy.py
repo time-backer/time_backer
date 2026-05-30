@@ -3,6 +3,7 @@ from typing import List
 from core.game_state import EnemyState
 from world.tile import Tile
 from settings import TILE_SIZE, GRAVITY, ORANGE, RED, PURPLE
+import asset_loader as A
 
 
 class AbsorbingEnemy:
@@ -61,32 +62,33 @@ class AbsorbingEnemy:
     def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
         if not self.alive:
             return
-        
+
         draw_x = int(self.x) - camera_x
         draw_y = int(self.y)
-        
-        # HP에 따라 색상 변화 (빨강 → 주황 → 보라)
-        if self.hp <= 3:
-            color = RED
-        elif self.hp <= 5:
-            color = ORANGE
+
+        # 스프라이트 선택: HP에 따라 golem 변형 사용
+        if self.hp <= 1:
+            frames = A.golem_lowhp   # 48×48
+            sw, sh = 48, 48
+        elif self.hp > 3:
+            frames = A.golem_highhp  # 48×48
+            sw, sh = 48, 48
         else:
-            color = PURPLE
-        
-        # 몸체
-        pygame.draw.rect(surface, color, 
-                        (draw_x, draw_y, self.WIDTH, self.HEIGHT), border_radius=6)
-        pygame.draw.rect(surface, (255, 255, 255), 
-                        (draw_x, draw_y, self.WIDTH, self.HEIGHT), 2, border_radius=6)
-        
+            frames = A.golem         # 32×32
+            sw, sh = 32, 32
+
+        frame = frames[(pygame.time.get_ticks() // 200) % len(frames)]
+        # center sprite on the 40×40 hitbox
+        ox = draw_x + self.WIDTH // 2 - sw // 2
+        oy = draw_y + self.HEIGHT // 2 - sh // 2
+        surface.blit(frame, (ox, oy))
+
         # HP 바
-        bar_width = 36
-        bar_height = 4
+        bar_w, bar_h = 36, 4
         bar_x = draw_x + 2
-        bar_y = draw_y - 8
-        
-        # 배경 (회색)
-        pygame.draw.rect(surface, (60, 60, 60), (bar_x, bar_y, bar_width, bar_height))
-        # HP (색상)
+        bar_y = draw_y - 10
+        pygame.draw.rect(surface, (60, 60, 60), (bar_x, bar_y, bar_w, bar_h))
         hp_ratio = self.hp / max(self.max_hp, 1)
-        pygame.draw.rect(surface, color, (bar_x, bar_y, int(bar_width * hp_ratio), bar_height))
+        bar_col = RED if self.hp <= 1 else (ORANGE if self.hp <= 3 else PURPLE)
+        pygame.draw.rect(surface, bar_col,
+                         (bar_x, bar_y, int(bar_w * hp_ratio), bar_h))

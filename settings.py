@@ -5,7 +5,7 @@ TITLE = "Time Backer"
 
 GRAVITY = 0.6
 JUMP_FORCE = -13
-MOVE_SPEED = 4
+MOVE_SPEED = 3
 
 REWIND_FLASH_DURATION = 60   # 1 second at 60 fps
 REWIND_TIME_SECONDS = 3      # 3 seconds to rewind
