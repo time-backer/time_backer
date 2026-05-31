@@ -12,8 +12,8 @@ JUMP_FORCE = -13
 MOVE_SPEED = 3
 
 REWIND_FLASH_DURATION = 60   # 1 second at 60 fps
-REWIND_TIME_SECONDS = 3      # 3 seconds to rewind
-REWIND_FRAMES = 180          # 3 seconds at 60 fps (3 * 60)
+REWIND_TIME_SECONDS = 2      # 2 seconds to rewind
+REWIND_FRAMES = 120          # 2 seconds at 60 fps (2 * 60)
 MAX_REWIND_COUNT = 5         # Maximum rewind uses per stage
 REWIND_SPEED = 3             # Frames to pop per update (higher = faster rewind)
 

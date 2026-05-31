@@ -33,7 +33,7 @@ class BossStage:
         return (2 * TILE_SIZE, (self._map_h - 2) * TILE_SIZE - TILE_SIZE)
 
     def get_boss_position(self) -> Tuple[int, int]:
-        return (12 * TILE_SIZE - 36, 3 * TILE_SIZE)
+        return (12 * TILE_SIZE - 36, 6 * TILE_SIZE)
 
     def get_enemy_spawns(self) -> List[Tuple[int, int]]:
         return []

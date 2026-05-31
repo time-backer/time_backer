@@ -117,13 +117,13 @@ class Boss:
         else:
             return PURPLE
     
-    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
+    def draw(self, surface: pygame.Surface, camera_x: int = 0, camera_y: int = 0) -> None:
         """보스 렌더링"""
         if not self.alive:
             return
 
         draw_x = int(self.x) - camera_x
-        draw_y = int(self.y)
+        draw_y = int(self.y) - camera_y
 
         # Phase에 따라 스프라이트 선택
         if self.phase == 1:
@@ -146,30 +146,26 @@ class Boss:
         self._draw_hp_bar(surface)
     
     def _draw_hp_bar(self, surface: pygame.Surface) -> None:
-        """보스 HP 바 (화면 하단)"""
-        bar_width = 400
-        bar_height = 20
-        bar_x = (800 - bar_width) // 2
-        bar_y = 480 - 40
-        
-        # 배경
+        """보스 HP 바 (화면 하단 — SCREEN_WIDTH/HEIGHT 기준)"""
+        bar_width  = SCREEN_WIDTH // 2
+        bar_height = 12
+        bar_x = (SCREEN_WIDTH  - bar_width)  // 2
+        bar_y =  SCREEN_HEIGHT - 26
+
         pygame.draw.rect(surface, (40, 40, 40), (bar_x, bar_y, bar_width, bar_height))
-        
-        # HP
+
         hp_ratio = self.hp / self.MAX_HP
         color = self.get_phase_color()
         pygame.draw.rect(surface, color, (bar_x, bar_y, int(bar_width * hp_ratio), bar_height))
-        
-        # 테두리
-        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 2)
-        
-        # HP 텍스트
-        font = pygame.font.SysFont(None, 24)
-        hp_text = f"BOSS HP: {self.hp}/{self.MAX_HP}"
+        pygame.draw.rect(surface, WHITE, (bar_x, bar_y, bar_width, bar_height), 1)
+
+        font = pygame.font.SysFont(None, 16)
+        hp_text  = f"BOSS HP: {self.hp}/{self.MAX_HP}"
         text_surf = font.render(hp_text, True, WHITE)
-        surface.blit(text_surf, (bar_x + bar_width // 2 - text_surf.get_width() // 2, bar_y - 25))
-        
-        # Phase 표시
-        phase_text = f"PHASE {self.phase}"
-        phase_surf = font.render(phase_text, True, color)
-        surface.blit(phase_surf, (bar_x + bar_width // 2 - phase_surf.get_width() // 2, bar_y + bar_height + 5))
+        surface.blit(text_surf, (bar_x + bar_width // 2 - text_surf.get_width() // 2,
+                                  bar_y - 14))
+
+        phase_text  = f"PHASE {self.phase}"
+        phase_surf  = font.render(phase_text, True, color)
+        surface.blit(phase_surf, (bar_x + bar_width // 2 - phase_surf.get_width() // 2,
+                                   bar_y + bar_height + 2))

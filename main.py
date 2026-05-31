@@ -10,7 +10,8 @@ from scenes.end_scene import EndScene
 def main() -> None:
     pygame.init()
     display = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
-    game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+    # display와 같은 픽셀 포맷으로 생성해야 convert_alpha() 스프라이트가 올바르게 렌더링됨
+    game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT)).convert()
     asset_loader.load()
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()

@@ -14,7 +14,7 @@ from world.boss_stage import BossStage
 from settings import (
     SCREEN_WIDTH, SCREEN_HEIGHT, TILE_SIZE,
     REWIND_FLASH_DURATION, REWIND_FRAMES, MAX_REWIND_COUNT, REWIND_SPEED,
-    WHITE, YELLOW, RED, CYAN, BLACK, SKY,
+    WHITE, YELLOW, RED, CYAN, BLACK, SKY, FPS,
 )
 import asset_loader as A
 
@@ -71,10 +71,11 @@ class GameScene:
         self._rewind_target_frames = 0
         self._rewind_start_time    = 0
 
-        self._font_hud = pygame.font.SysFont(None, 28)
-        self._font_big = pygame.font.SysFont(None, 52)
+        self._font_hud = pygame.font.SysFont(None, 16)   # 내부 288px 기준
+        self._font_big = pygame.font.SysFont(None, 32)
 
         self._camera_x = 0
+        self._camera_y = 0
         self._outcome: Optional[str] = None
 
     # ── 물리 월드에 타일 등록 ─────────────────────────────────────────────
@@ -167,9 +168,14 @@ class GameScene:
             self._outcome = "gameover"
             return self._outcome
 
-        # 8) 카메라
+        # 8) 카메라 (수평 + 수직)
         target_cx = int(self._player.x) - SCREEN_WIDTH // 3
-        self._camera_x = max(0, min(target_cx, self._stage.pixel_width - SCREEN_WIDTH))
+        self._camera_x = max(0, min(target_cx,
+                                    self._stage.pixel_width - SCREEN_WIDTH))
+
+        target_cy = int(self._player.y) + Player.HEIGHT // 2 - SCREEN_HEIGHT // 2
+        self._camera_y = max(0, min(target_cy,
+                                    self._stage.pixel_height - SCREEN_HEIGHT))
         return None
 
     # ── 충돌 처리 헬퍼 ───────────────────────────────────────────────────
@@ -271,6 +277,7 @@ class GameScene:
         if self._rewind_target_frames <= 0:
             self._rewinding = False
             self._paused_time += pygame.time.get_ticks() - self._rewind_start_time
+            self._player._hurt_timer = FPS   # 역행 후 1초 무적
             return
 
         for _ in range(REWIND_SPEED):
@@ -280,6 +287,7 @@ class GameScene:
             if state is None:
                 self._rewinding = False
                 self._rewind_target_frames = 0
+                self._player._hurt_timer = FPS   # 역행 후 1초 무적
                 return
             self._apply_state(state)
             self._rewind_target_frames -= 1
@@ -287,18 +295,20 @@ class GameScene:
     # ── 렌더링 ────────────────────────────────────────────────────────────
 
     def draw(self, surface: pygame.Surface) -> None:
-        self._stage.draw(surface, self._camera_x)
+        cx, cy = self._camera_x, self._camera_y
+
+        self._stage.draw(surface, cx, cy)
 
         for enemy in self._enemies:
-            enemy.draw(surface, self._camera_x)
+            enemy.draw(surface, cx, cy)
 
         if self._absorbing_enemy:
-            self._absorbing_enemy.draw(surface, self._camera_x)
+            self._absorbing_enemy.draw(surface, cx, cy)
 
         if self._boss:
-            self._boss.draw(surface, self._camera_x)
+            self._boss.draw(surface, cx, cy)
 
-        self._player.draw(surface, self._camera_x, rewinding=self._rewinding)
+        self._player.draw(surface, cx, cy, rewinding=self._rewinding)
 
         self._draw_hud(surface)
 
@@ -317,10 +327,10 @@ class GameScene:
         surface.blit(stage_surf, (10, 8))
 
         hp_label = self._font_hud.render("HP:", True, WHITE)
-        surface.blit(hp_label, (120, 6))
+        surface.blit(hp_label, (72, 6))
         for i in range(Player.MAX_HP):
             icon = A.hud_hp_full if i < self._player.hp else A.hud_hp_empty
-            surface.blit(icon, (152 + i * 26, 6))
+            surface.blit(icon, (100 + i * 26, 6))
 
         if self._rewinding:
             rewind_text = f"REWINDING {self._rewind_target_frames}"

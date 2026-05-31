@@ -1,5 +1,6 @@
 import os
 import pygame
+from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
@@ -90,7 +91,9 @@ def load() -> None:
 
     # Effects
     portal         = _cut(_img("effects/portal.png"), 32, 32)
-    rewind_overlay = _img("effects/rewind_overlay.png")
+    rewind_overlay = pygame.transform.scale(
+        _img("effects/rewind_overlay.png"), (SCREEN_WIDTH, SCREEN_HEIGHT)
+    )
 
     # HUD
     hp_sheet     = _img("hud/hud_hp.png")
