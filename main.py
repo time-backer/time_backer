@@ -1,7 +1,7 @@
 import sys
 import pygame
 import asset_loader
-from settings import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE
+from settings import SCREEN_WIDTH, SCREEN_HEIGHT, DISPLAY_WIDTH, DISPLAY_HEIGHT, FPS, TITLE
 from scenes.start_scene import StartScene
 from scenes.game_scene import GameScene
 from scenes.end_scene import EndScene
@@ -9,7 +9,8 @@ from scenes.end_scene import EndScene
 
 def main() -> None:
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    display = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+    game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     asset_loader.load()
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()
@@ -74,7 +75,9 @@ def main() -> None:
             current = "end"
 
         scene = scenes[current]
-        scene.draw(screen)
+        scene.draw(game_surface)
+        # 내부 480×288 → 표시 800×480 으로 확대 (픽셀아트 nearest-neighbor)
+        pygame.transform.scale(game_surface, (DISPLAY_WIDTH, DISPLAY_HEIGHT), display)
 
         # EndScene → back to title
         if current == "end":
@@ -86,7 +89,7 @@ def main() -> None:
                 scenes["game"] = GameScene(stage_num=1)
                 current = "start"
 
-        pygame.display.flip()
+        pygame.display.flip()  # display에 이미 scale 결과가 blitted 됨
         clock.tick(FPS)
 
 

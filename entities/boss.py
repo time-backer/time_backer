@@ -1,6 +1,6 @@
 import pygame
 from typing import List
-from settings import TILE_SIZE, RED, ORANGE, PURPLE, WHITE
+from settings import TILE_SIZE, SCREEN_WIDTH, SCREEN_HEIGHT, RED, ORANGE, PURPLE, WHITE
 import asset_loader as A
 
 

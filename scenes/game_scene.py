@@ -1,8 +1,10 @@
 import pygame
+import pymunk
 from typing import List, Optional
 
 from core.game_state import GameState
 from core.time_stack import TimeStack
+from core.physics import PhysicsWorld, STOMP_VY
 from entities.player import Player
 from entities.enemy import Enemy
 from entities.absorbing_enemy import AbsorbingEnemy
@@ -20,70 +22,83 @@ import asset_loader as A
 class GameScene:
     def __init__(self, stage_num: int = 1) -> None:
         self._stage_num = stage_num
-        
-        # 보스 스테이지 (7) vs 일반 스테이지 (1~6)
+
+        # ── 스테이지 생성 ────────────────────────────────────────────────
         if stage_num == 7:
             self._stage = BossStage()
         else:
             self._stage = Stage(stage_num=stage_num)
 
-        sx, sy = self._stage.get_player_start()
-        self._player = Player(sx, sy)
+        # ── 물리 월드 ────────────────────────────────────────────────────
+        self._phys = PhysicsWorld()
+        self._build_physics()
 
-        self._enemies = [
-            Enemy(x, y, idx)
-            for idx, (x, y) in enumerate(self._stage.get_enemy_spawns())
-        ]
-        
-        # Stage 5: 흡수 적 추가
-        self._absorbing_enemy = None
+        # ── 플레이어 ─────────────────────────────────────────────────────
+        sx, sy = self._stage.get_player_start()
+        p_body = self._phys.add_player_body(sx, sy, Player.WIDTH, Player.HEIGHT)
+        self._player = Player(p_body)
+
+        # ── 일반 적 ──────────────────────────────────────────────────────
+        self._enemies: List[Enemy] = []
+        for i, (ex, ey) in enumerate(self._stage.get_enemy_spawns()):
+            body = self._phys.add_enemy_body(ex, ey, Enemy.WIDTH, Enemy.HEIGHT)
+            self._enemies.append(Enemy(body, i))
+
+        # ── 흡수 적 (Stage 5) ────────────────────────────────────────────
+        self._absorbing_enemy: Optional[AbsorbingEnemy] = None
         if stage_num == 5:
-            # 중앙에 흡수 적 배치
-            self._absorbing_enemy = AbsorbingEnemy(12 * TILE_SIZE, 5 * TILE_SIZE)
-        
-        # Stage 7: 보스 추가
-        self._boss = None
+            ax, ay = 12 * TILE_SIZE, 5 * TILE_SIZE
+            ab_body = self._phys.add_enemy_body(ax, ay, AbsorbingEnemy.WIDTH,
+                                                AbsorbingEnemy.HEIGHT)
+            self._absorbing_enemy = AbsorbingEnemy(ab_body)
+
+        # ── 보스 (Stage 7) ───────────────────────────────────────────────
+        self._boss: Optional[Boss] = None
         if stage_num == 7:
             bx, by = self._stage.get_boss_position()
             self._boss = Boss(bx, by)
 
+        # ── 타임 스택 ────────────────────────────────────────────────────
         self._time_stack = TimeStack()
-        self._rewind_count = MAX_REWIND_COUNT  # 남은 역행 횟수
+        self._rewind_count = MAX_REWIND_COUNT
         self._frame = 0
-        self._start_time = pygame.time.get_ticks()  # 클리어 타임 측정
-        self._paused_time = 0  # 역행 중 정지된 시간
+        self._start_time = pygame.time.get_ticks()
+        self._paused_time = 0
 
         self._flash_timer = 0
-        self._flash_full = False
-        
-        # 시간 역행 애니메이션
-        self._rewinding = False
+        self._flash_full  = False
+        self._rewinding   = False
         self._rewind_target_frames = 0
-        self._rewind_start_time = 0
+        self._rewind_start_time    = 0
 
         self._font_hud = pygame.font.SysFont(None, 28)
         self._font_big = pygame.font.SysFont(None, 52)
 
         self._camera_x = 0
-        self._outcome: Optional[str] = None  # "next_stage" | "clear" | "gameover"
+        self._outcome: Optional[str] = None
 
-    # ------------------------------------------------------------------
+    # ── 물리 월드에 타일 등록 ─────────────────────────────────────────────
+
+    def _build_physics(self) -> None:
+        for tile in self._stage.ground_tiles:
+            self._phys.add_static_ground(tile.rect.x, tile.rect.y, TILE_SIZE, TILE_SIZE)
+
+    # ── 리셋 ─────────────────────────────────────────────────────────────
+
     def reset(self) -> None:
         self.__init__(self._stage_num)
 
-    # ------------------------------------------------------------------
-    # Getters for external access
-    # ------------------------------------------------------------------
+    # ── 외부 접근 ─────────────────────────────────────────────────────────
+
     def get_clear_time(self) -> int:
-        """클리어 타임 반환 (초 단위)"""
         elapsed = pygame.time.get_ticks() - self._start_time - self._paused_time
         return elapsed // 1000
-    
+
     def get_rewind_used(self) -> int:
-        """사용한 역행 횟수 반환"""
         return MAX_REWIND_COUNT - self._rewind_count
 
-    # ------------------------------------------------------------------
+    # ── 이벤트 ───────────────────────────────────────────────────────────
+
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_z:
@@ -94,82 +109,192 @@ class GameScene:
                 self.reset()
         return None
 
+    # ── 메인 업데이트 ─────────────────────────────────────────────────────
+
     def update(self) -> Optional[str]:
         if self._outcome:
             return self._outcome
 
-        keys = pygame.key.get_pressed()
-        
-        # 역행 중이면 게임 로직 스킵하고 되감기만 수행
         if self._rewinding:
             self._process_rewind()
             if self._flash_timer > 0:
                 self._flash_timer -= 1
             return None
-        
+
+        keys = pygame.key.get_pressed()
         self._frame += 1
 
-        # 매 프레임마다 스냅샷 저장 (3초 = 180프레임 저장)
-        self._push_snapshot()
-
+        # 1) 입력 처리 (이전 프레임 on_ground 사용)
         self._player.handle_input(keys)
-        self._player.update(self._stage.ground_tiles, self._stage.pixel_width)
 
+        # 2) 적 AI 처리
         for enemy in self._enemies:
-            enemy.update(self._stage.ground_tiles, self._stage.pixel_width)
-        
-        # 흡수 적 업데이트
-        if self._absorbing_enemy:
-            self._absorbing_enemy.update(self._stage.ground_tiles, self._stage.pixel_width)
-        
-        # 보스 업데이트
+            enemy.update(self._stage.pixel_width)
         if self._boss:
             self._boss.update()
 
-        self._check_spike_collisions()
-        self._check_enemy_collisions()
-        self._check_absorbing_enemy_collision()
-        self._check_boss_collision()
-        
-        # 스위치 체크 (Stage 2)
-        self._stage.check_switches(self._player.rect)
+        # 3) 물리 스텝
+        self._phys.step()
+
+        # 4) ground 상태 동기화
+        self._player.on_ground = self._phys.player_on_ground
+        self._player.clamp_x(self._stage.pixel_width)
+        self._player.tick_hurt()
+
+        # 5) 충돌 처리 (rect 기반 — pymunk 외)
+        self._handle_spike_hits()
+        self._handle_enemy_hits()
+        self._handle_switch_hits()
+        self._handle_absorbing_enemy()
+        self._handle_boss_collision()
+
+        # 6) 스냅샷 저장
+        self._push_snapshot()
 
         if self._flash_timer > 0:
             self._flash_timer -= 1
 
-        # --- win / lose ---
-        # 보스 스테이지: 보스 처치 시 클리어
+        # 7) 승패 판정
         if self._boss and not self._boss.alive:
             self._outcome = "clear"
             return self._outcome
-        
-        # 일반 스테이지: 출구 도달 시 클리어
+
         if self._stage.is_clear(self._player.rect):
             self._outcome = "clear"
             return self._outcome
 
-        # death handling
         if self._player.is_dead() or self._player.y > self._stage.pixel_height + 100:
             self._outcome = "gameover"
             return self._outcome
 
-        # camera
+        # 8) 카메라
         target_cx = int(self._player.x) - SCREEN_WIDTH // 3
-        self._camera_x = max(0, min(target_cx,
-                                    self._stage.pixel_width - SCREEN_WIDTH))
+        self._camera_x = max(0, min(target_cx, self._stage.pixel_width - SCREEN_WIDTH))
         return None
+
+    # ── 충돌 처리 헬퍼 ───────────────────────────────────────────────────
+
+    def _handle_spike_hits(self) -> None:
+        pr = self._player.rect
+        for spike in self._stage.spike_tiles:
+            if pr.colliderect(spike.get_rect()):
+                self._player.take_damage()
+
+    def _handle_enemy_hits(self) -> None:
+        pr = self._player.rect
+        for enemy in self._enemies:
+            if not enemy.alive:
+                continue
+            if pr.colliderect(enemy.rect):
+                if self._player.vy > 0 and pr.bottom < enemy.rect.centery + 10:
+                    enemy.die()
+                    body = self._player._body
+                    body.velocity = pymunk.Vec2d(body.velocity.x, STOMP_VY)
+                else:
+                    self._player.take_damage()
+
+    def _handle_switch_hits(self) -> None:
+        self._stage.check_switches(self._player.rect)
+
+    def _handle_absorbing_enemy(self) -> None:
+        if not self._absorbing_enemy or not self._absorbing_enemy.alive:
+            return
+        pr = self._player.rect
+        ar = self._absorbing_enemy.rect
+        if pr.colliderect(ar):
+            if self._player.vy > 0 and pr.bottom < ar.centery + 10:
+                self._absorbing_enemy.take_damage()
+                body = self._player._body
+                body.velocity = pymunk.Vec2d(body.velocity.x, STOMP_VY)
+            else:
+                self._player.take_damage()
+
+    def _handle_boss_collision(self) -> None:
+        if not self._boss or not self._boss.alive:
+            return
+        pr = self._player.rect
+        br = self._boss.rect
+        if pr.colliderect(br):
+            if self._player.vy > 0 and pr.bottom < br.centery + 10:
+                self._boss.take_damage(1)
+                body = self._player._body
+                body.velocity = pymunk.Vec2d(body.velocity.x, STOMP_VY * 1.2)
+            else:
+                self._player.take_damage()
+
+    # ── 시간 되감기 ───────────────────────────────────────────────────────
+
+    def _push_snapshot(self) -> None:
+        state = self._player.capture_state(self._rewind_count)
+        state.enemies = [e.capture_state() for e in self._enemies]
+        state.switch_states = [s.activated for s in self._stage.switch_tiles]
+        self._time_stack.push(state)
+
+    def _apply_state(self, state: GameState) -> None:
+        self._player.apply_state(state)
+        for i, es in enumerate(state.enemies):
+            if i < len(self._enemies):
+                self._enemies[i].apply_state(es)
+        for i, activated in enumerate(state.switch_states):
+            if i < len(self._stage.switch_tiles):
+                self._stage.switch_tiles[i].activated = activated
+
+    def _rewind_one(self) -> None:
+        if self._rewind_count <= 0 or self._rewinding:
+            return
+        if len(self._time_stack) == 0:
+            return
+        if self._absorbing_enemy and self._absorbing_enemy.alive:
+            self._absorbing_enemy.absorb_rewind()
+        if self._boss and self._boss.reversing:
+            self._boss.cancel_reverse()
+        self._rewinding           = True
+        self._rewind_target_frames = min(REWIND_FRAMES, len(self._time_stack))
+        self._rewind_count        -= 1
+        self._flash_timer         = REWIND_FLASH_DURATION
+        self._flash_full          = False
+        self._rewind_start_time   = pygame.time.get_ticks()
+
+    def _rewind_all(self) -> None:
+        if self._rewind_count <= 0 or self._rewinding:
+            return
+        if len(self._time_stack) == 0:
+            return
+        self._rewinding           = True
+        self._rewind_target_frames = len(self._time_stack)
+        self._rewind_count        -= 1
+        self._flash_timer         = REWIND_FLASH_DURATION
+        self._flash_full          = True
+        self._rewind_start_time   = pygame.time.get_ticks()
+
+    def _process_rewind(self) -> None:
+        if self._rewind_target_frames <= 0:
+            self._rewinding = False
+            self._paused_time += pygame.time.get_ticks() - self._rewind_start_time
+            return
+
+        for _ in range(REWIND_SPEED):
+            if self._rewind_target_frames <= 0:
+                break
+            state = self._time_stack.pop()
+            if state is None:
+                self._rewinding = False
+                self._rewind_target_frames = 0
+                return
+            self._apply_state(state)
+            self._rewind_target_frames -= 1
+
+    # ── 렌더링 ────────────────────────────────────────────────────────────
 
     def draw(self, surface: pygame.Surface) -> None:
         self._stage.draw(surface, self._camera_x)
 
         for enemy in self._enemies:
             enemy.draw(surface, self._camera_x)
-        
-        # 흡수 적 렌더링
+
         if self._absorbing_enemy:
             self._absorbing_enemy.draw(surface, self._camera_x)
-        
-        # 보스 렌더링
+
         if self._boss:
             self._boss.draw(surface, self._camera_x)
 
@@ -183,190 +308,47 @@ class GameScene:
         if self._outcome:
             self._draw_outcome_overlay(surface)
 
-    # ------------------------------------------------------------------
-    # Rewind
-    # ------------------------------------------------------------------
-    def _push_snapshot(self) -> None:
-        state = self._player.capture_state(0)
-        state.enemies = [e.capture_state() for e in self._enemies]
-        state.switch_states = [s.activated for s in self._stage.switch_tiles]
-        self._time_stack.push(state)
+    # ── HUD ──────────────────────────────────────────────────────────────
 
-    def _apply_state(self, state: GameState) -> None:
-        self._player.apply_state(state)
-        for i, es in enumerate(state.enemies):
-            if i < len(self._enemies):
-                self._enemies[i].apply_state(es)
-        # 스위치 상태 복원
-        for i, activated in enumerate(state.switch_states):
-            if i < len(self._stage.switch_tiles):
-                self._stage.switch_tiles[i].activated = activated
-
-    def _rewind_one(self) -> None:
-        """Z키: 3초 전으로 역행 (애니메이션)"""
-        if self._rewind_count <= 0 or self._rewinding:
-            return
-        if len(self._time_stack) == 0:
-            return
-        
-        # 흡수 적이 있으면 HP 증가
-        if self._absorbing_enemy and self._absorbing_enemy.alive:
-            self._absorbing_enemy.absorb_rewind()
-        
-        # 보스 타임 리버스 취소 (Phase 3 핵심 메커니즘)
-        if self._boss and self._boss.reversing:
-            self._boss.cancel_reverse()
-        
-        # 역행 애니메이션 시작
-        self._rewinding = True
-        self._rewind_target_frames = min(REWIND_FRAMES, len(self._time_stack))
-        self._rewind_count -= 1
-        self._flash_timer = REWIND_FLASH_DURATION
-        self._flash_full = False
-        self._rewind_start_time = pygame.time.get_ticks()  # 역행 시작 시간 기록
-
-    def _rewind_all(self) -> None:
-        """X키: 시작 위치로 완전 복귀 (애니메이션)"""
-        if self._rewind_count <= 0 or self._rewinding:
-            return
-        if len(self._time_stack) == 0:
-            return
-        
-        # 전체 역행 애니메이션 시작
-        self._rewinding = True
-        self._rewind_target_frames = len(self._time_stack)
-        self._rewind_count -= 1
-        self._flash_timer = REWIND_FLASH_DURATION
-        self._flash_full = True
-        self._rewind_start_time = pygame.time.get_ticks()  # 역행 시작 시간 기록
-    
-    def _process_rewind(self) -> None:
-        """매 프레임마다 호출되어 역행 애니메이션 처리"""
-        if self._rewind_target_frames <= 0:
-            self._rewinding = False
-            # 역행 종료 시 정지된 시간 누적
-            self._paused_time += pygame.time.get_ticks() - self._rewind_start_time
-            return
-        
-        # 빠르게 되감기 (매 프레임마다 여러 프레임 pop)
-        for _ in range(REWIND_SPEED):
-            if self._rewind_target_frames <= 0:
-                break
-            
-            state = self._time_stack.pop()
-            if state is None:
-                self._rewinding = False
-                self._rewind_target_frames = 0
-                return
-            
-            self._apply_state(state)
-            self._rewind_target_frames -= 1
-
-    # ------------------------------------------------------------------
-    # Collisions
-    # ------------------------------------------------------------------
-    def _check_spike_collisions(self) -> None:
-        pr = self._player.rect
-        for spike in self._stage.spike_tiles:
-            if pr.colliderect(spike.get_rect()):
-                self._player.take_damage()
-
-    def _check_enemy_collisions(self) -> None:
-        pr = self._player.rect
-        for enemy in self._enemies:
-            if not enemy.alive:
-                continue
-            if pr.colliderect(enemy.rect):
-                if self._player.vy > 0 and pr.bottom < enemy.rect.centery + 10:
-                    enemy.alive = False
-                    self._player.vy = -8
-                else:
-                    self._player.take_damage()
-    
-    def _check_absorbing_enemy_collision(self) -> None:
-        """흡수 적 충돌 처리"""
-        if not self._absorbing_enemy or not self._absorbing_enemy.alive:
-            return
-        
-        pr = self._player.rect
-        if pr.colliderect(self._absorbing_enemy.rect):
-            # 위에서 밟으면 데미지
-            if self._player.vy > 0 and pr.bottom < self._absorbing_enemy.rect.centery + 10:
-                self._absorbing_enemy.take_damage()
-                self._player.vy = -8
-            else:
-                # 옆에서 부딪히면 플레이어 피격
-                self._player.take_damage()
-    
-    def _check_boss_collision(self) -> None:
-        """보스 충돌 처리"""
-        if not self._boss or not self._boss.alive:
-            return
-        
-        pr = self._player.rect
-        if pr.colliderect(self._boss.rect):
-            # 위에서 밟으면 보스에게 데미지
-            if self._player.vy > 0 and pr.bottom < self._boss.rect.centery + 10:
-                self._boss.take_damage(1)
-                self._player.vy = -10  # 높게 튕김
-            else:
-                # 옆에서 부딪히면 플레이어 피격
-                self._player.take_damage()
-
-    # ------------------------------------------------------------------
-    # HUD
-    # ------------------------------------------------------------------
     def _draw_hud(self, surface: pygame.Surface) -> None:
         pygame.draw.rect(surface, (10, 10, 25), (0, 0, SCREEN_WIDTH, 36))
 
-        # Stage number (left)
-        stage_text = f"STAGE {self._stage_num}"
-        stage_surf = self._font_hud.render(stage_text, True, CYAN)
+        stage_surf = self._font_hud.render(f"STAGE {self._stage_num}", True, CYAN)
         surface.blit(stage_surf, (10, 8))
 
-        # HP (스프라이트 아이콘)
         hp_label = self._font_hud.render("HP:", True, WHITE)
         surface.blit(hp_label, (120, 6))
         for i in range(Player.MAX_HP):
             icon = A.hud_hp_full if i < self._player.hp else A.hud_hp_empty
             surface.blit(icon, (152 + i * 26, 6))
 
-        # Rewind count (center)
         if self._rewinding:
-            # 역행 중일 때 진행 상태 표시
             rewind_text = f"REWINDING {self._rewind_target_frames}"
-            rewind_col = YELLOW
+            rewind_col  = YELLOW
         else:
             rewind_text = f"REWIND: {self._rewind_count} / {MAX_REWIND_COUNT}"
-            rewind_col = CYAN if self._rewind_count > 0 else RED
+            rewind_col  = CYAN if self._rewind_count > 0 else RED
         rw_surf = self._font_hud.render(rewind_text, True, rewind_col)
         surface.blit(rw_surf, (SCREEN_WIDTH // 2 - rw_surf.get_width() // 2, 8))
 
-        # Time (역행 중 정지된 시간 제외)
-        elapsed = self.get_clear_time()
-        time_text = f"TIME: {elapsed}s"
-        time_surf = self._font_hud.render(time_text, True, YELLOW)
+        elapsed   = self.get_clear_time()
+        time_surf = self._font_hud.render(f"TIME: {elapsed}s", True, YELLOW)
         surface.blit(time_surf, (SCREEN_WIDTH - time_surf.get_width() - 10, 8))
 
-    # ------------------------------------------------------------------
-    # Visual effects
-    # ------------------------------------------------------------------
-    def _draw_rewind_flash(self, surface: pygame.Surface) -> None:
-        max_frames = REWIND_FLASH_DURATION
-        ratio = self._flash_timer / max_frames
-        alpha = int(200 * ratio)
+    # ── 시각 효과 ─────────────────────────────────────────────────────────
 
-        # rewind_overlay.png를 alpha 합성으로 표시
+    def _draw_rewind_flash(self, surface: pygame.Surface) -> None:
+        ratio = self._flash_timer / REWIND_FLASH_DURATION
         overlay = A.rewind_overlay.copy()
-        overlay.set_alpha(alpha)
+        overlay.set_alpha(int(200 * ratio))
         surface.blit(overlay, (0, 0))
 
-        # 배너 이미지를 화면 중앙에 표시
-        if self._flash_timer > max_frames // 2:
+        if self._flash_timer > REWIND_FLASH_DURATION // 2:
             banner = A.hud_rewind_banner
-            bx = SCREEN_WIDTH // 2 - banner.get_width() // 2
-            by = SCREEN_HEIGHT // 2 - banner.get_height() // 2
-            surface.blit(banner, (bx, by))
+            surface.blit(banner, (
+                SCREEN_WIDTH  // 2 - banner.get_width()  // 2,
+                SCREEN_HEIGHT // 2 - banner.get_height() // 2,
+            ))
 
     def _draw_outcome_overlay(self, surface: pygame.Surface) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -374,15 +356,13 @@ class GameScene:
         surface.blit(overlay, (0, 0))
 
         msg_map = {
-            "clear":      ("VICTORY!", CYAN),
-            "next_stage": ("STAGE CLEAR!", CYAN),
-            "gameover":   ("GAME OVER",   RED),
+            "clear":    ("VICTORY!", CYAN),
+            "gameover": ("GAME OVER", RED),
         }
         msg, col = msg_map.get(self._outcome, ("???", WHITE))
         label = self._font_big.render(msg, True, col)
-        surface.blit(label, (SCREEN_WIDTH // 2 - label.get_width() // 2,
+        surface.blit(label, (SCREEN_WIDTH  // 2 - label.get_width()  // 2,
                               SCREEN_HEIGHT // 2 - 30))
-
         hint = self._font_hud.render("Press ENTER to continue", True, YELLOW)
         surface.blit(hint, (SCREEN_WIDTH // 2 - hint.get_width() // 2,
                              SCREEN_HEIGHT // 2 + 30))

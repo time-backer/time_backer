@@ -17,8 +17,8 @@ class Tile:
     def get_rect(self) -> pygame.Rect:
         return self.rect
 
-    def draw(self, surface: pygame.Surface, camera_x: int = 0) -> None:
-        draw_rect = self.rect.move(-camera_x, 0)
+    def draw(self, surface: pygame.Surface, camera_x: int = 0, camera_y: int = 0) -> None:
+        draw_rect = self.rect.move(-camera_x, -camera_y)
         if self.tile_type == "ground":
             surface.blit(A.tile_ground, draw_rect.topleft)
         elif self.tile_type == "spike":
