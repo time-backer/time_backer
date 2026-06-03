@@ -31,14 +31,16 @@ def main() -> None:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                pygame.quit()
-                sys.exit()
 
             result = scene.handle_event(event)
             if result == "quit":
                 pygame.quit()
                 sys.exit()
+            elif result and result.startswith("dev:"):
+                target_stage = int(result.split(":")[1])
+                current_stage = target_stage
+                scenes["game"] = GameScene(stage_num=target_stage)
+                current = "game"
             elif result == "game":
                 # 게임 시작 시 스테이지 1부터
                 current_stage = 1
@@ -77,8 +79,8 @@ def main() -> None:
 
         scene = scenes[current]
         scene.draw(game_surface)
-        # 내부 480×288 → 표시 800×480 으로 확대 (픽셀아트 nearest-neighbor)
-        pygame.transform.scale(game_surface, (DISPLAY_WIDTH, DISPLAY_HEIGHT), display)
+        # 내부 480×288 → 표시 1280×720 으로 확대 (smoothscale bilinear)
+        pygame.transform.smoothscale(game_surface, (DISPLAY_WIDTH, DISPLAY_HEIGHT), display)
 
         # EndScene → back to title
         if current == "end":

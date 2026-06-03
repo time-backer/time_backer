@@ -78,6 +78,8 @@ class GameScene:
         self._camera_y = 0
         self._outcome: Optional[str] = None
 
+        self._dev_open = False
+
     # ── 물리 월드에 타일 등록 ─────────────────────────────────────────────
 
     def _build_physics(self) -> None:
@@ -102,6 +104,19 @@ class GameScene:
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self._dev_open = not self._dev_open
+                return None
+            if self._dev_open:
+                if event.key == pygame.K_q:
+                    return "quit"
+                stage_keys = {
+                    pygame.K_1: 1, pygame.K_2: 2, pygame.K_3: 3,
+                    pygame.K_4: 4, pygame.K_5: 5, pygame.K_6: 6, pygame.K_7: 7,
+                }
+                if event.key in stage_keys:
+                    return f"dev:{stage_keys[event.key]}"
+                return None
             if event.key == pygame.K_z:
                 self._rewind_one()
             elif event.key == pygame.K_x:
@@ -113,7 +128,7 @@ class GameScene:
     # ── 메인 업데이트 ─────────────────────────────────────────────────────
 
     def update(self) -> Optional[str]:
-        if self._outcome:
+        if self._dev_open or self._outcome:
             return self._outcome
 
         if self._rewinding:
@@ -318,6 +333,9 @@ class GameScene:
         if self._outcome:
             self._draw_outcome_overlay(surface)
 
+        if self._dev_open:
+            self._draw_dev_panel(surface)
+
     # ── HUD ──────────────────────────────────────────────────────────────
 
     def _draw_hud(self, surface: pygame.Surface) -> None:
@@ -359,6 +377,36 @@ class GameScene:
                 SCREEN_WIDTH  // 2 - banner.get_width()  // 2,
                 SCREEN_HEIGHT // 2 - banner.get_height() // 2,
             ))
+
+    def _draw_dev_panel(self, surface: pygame.Surface) -> None:
+        panel_w, panel_h = 180, 180
+        px = SCREEN_WIDTH // 2 - panel_w // 2
+        py = SCREEN_HEIGHT // 2 - panel_h // 2
+
+        bg = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+        bg.fill((10, 10, 30, 210))
+        surface.blit(bg, (px, py))
+        pygame.draw.rect(surface, CYAN, (px, py, panel_w, panel_h), 1)
+
+        title = self._font_hud.render("[ DEV MODE ]", True, YELLOW)
+        surface.blit(title, (px + panel_w // 2 - title.get_width() // 2, py + 8))
+
+        hint = self._font_hud.render("1-7: jump stage  Q: quit", True, WHITE)
+        surface.blit(hint, (px + panel_w // 2 - hint.get_width() // 2, py + 24))
+
+        stage_labels = {1:"Normal",2:"Switch",3:"Golem",4:"Mixed",5:"Absorb",6:"Final",7:"Boss"}
+        for i in range(1, 8):
+            y = py + 42 + (i - 1) * 18
+            is_cur = (i == self._stage_num)
+            color = CYAN if is_cur else WHITE
+            marker = ">" if is_cur else " "
+            label = self._font_hud.render(
+                f"{marker} {i}: Stage {i}  {stage_labels.get(i,'')}", True, color
+            )
+            surface.blit(label, (px + 12, y))
+
+        esc_hint = self._font_hud.render("ESC: close", True, (150, 150, 150))
+        surface.blit(esc_hint, (px + panel_w // 2 - esc_hint.get_width() // 2, py + panel_h - 16))
 
     def _draw_outcome_overlay(self, surface: pygame.Surface) -> None:
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
