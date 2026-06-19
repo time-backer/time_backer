@@ -7,7 +7,7 @@ from scenes.game_scene import GameScene
 from scenes.end_scene import EndScene
 
 
-def main() -> None:
+def main():
     pygame.init()
     display = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
     # display와 같은 픽셀 포맷으로 생성해야 convert_alpha() 스프라이트가 올바르게 렌더링됨
@@ -16,13 +16,13 @@ def main() -> None:
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()
 
-    scenes: dict = {
+    scenes = {
         "start": StartScene(),
         "game":  GameScene(stage_num=1),
         "end":   None,
     }
     current = "start"
-    current_stage = 1  # 현재 진행 중인 스테이지 (1~6)
+    current_stage = 1  # 현재 진행 중인 스테이지 (1~3)
 
     while True:
         scene = scenes[current]
@@ -47,26 +47,20 @@ def main() -> None:
                 scenes["game"] = GameScene(stage_num=current_stage)
                 current = "game"
 
-        update_result = scene.update() if hasattr(scene, "update") else None
+        if hasattr(scene, "update"):
+            update_result = scene.update()
+        else:
+            update_result = None
 
         if update_result == "clear":
-            # 스테이지 클리어
             game_scene = scenes["game"]
             clear_time = game_scene.get_clear_time()
             rewind_used = game_scene.get_rewind_used()
-            
-            if current_stage < 6:
-                # 다음 스테이지로 (1~5)
+            if current_stage < 4:
                 current_stage += 1
                 scenes["game"] = GameScene(stage_num=current_stage)
                 current = "game"
-            elif current_stage == 6:
-                # 6스테이지 클리어 → 보스 스테이지(7)
-                current_stage = 7
-                scenes["game"] = GameScene(stage_num=7)
-                current = "game"
             else:
-                # 보스 스테이지(7) 클리어 → 엔딩
                 scenes["end"] = EndScene(True, clear_time, rewind_used)
                 current = "end"
         elif update_result == "gameover":
@@ -79,7 +73,6 @@ def main() -> None:
 
         scene = scenes[current]
         scene.draw(game_surface)
-        # 내부 480×288 → 표시 1280×720 으로 확대 (smoothscale bilinear)
         pygame.transform.smoothscale(game_surface, (DISPLAY_WIDTH, DISPLAY_HEIGHT), display)
 
         # EndScene → back to title

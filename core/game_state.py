@@ -1,34 +1,32 @@
-from dataclasses import dataclass, field
-from typing import List
-
-
-@dataclass
 class EnemyState:
-    x: float
-    y: float
-    direction: int
-    alive: bool
+    def __init__(self, x, y, direction, alive):
+        self.x = x
+        self.y = y
+        self.direction = direction
+        self.alive = alive
 
 
-@dataclass
 class GameState:
-    player_x: float
-    player_y: float
-    player_vx: float
-    player_vy: float
-    hp: int
-    rewind_count: int
-    enemies: List[EnemyState] = field(default_factory=list)
-    switch_states: List[bool] = field(default_factory=list)  # 스위치 활성화 상태
+    def __init__(self, player_x, player_y, player_vx, player_vy, hp, rewind_count):
+        self.player_x = player_x
+        self.player_y = player_y
+        self.player_vx = player_vx
+        self.player_vy = player_vy
+        self.hp = hp
+        self.rewind_count = rewind_count
+        self.enemies = []
 
-    def copy(self) -> "GameState":
-        return GameState(
-            player_x=self.player_x,
-            player_y=self.player_y,
-            player_vx=self.player_vx,
-            player_vy=self.player_vy,
-            hp=self.hp,
-            rewind_count=self.rewind_count,
-            enemies=[EnemyState(e.x, e.y, e.direction, e.alive) for e in self.enemies],
-            switch_states=self.switch_states.copy(),
+    def copy(self):
+        new_state = GameState(
+            self.player_x,
+            self.player_y,
+            self.player_vx,
+            self.player_vy,
+            self.hp,
+            self.rewind_count,
         )
+        new_enemies = []
+        for e in self.enemies:
+            new_enemies.append(EnemyState(e.x, e.y, e.direction, e.alive))
+        new_state.enemies = new_enemies
+        return new_state

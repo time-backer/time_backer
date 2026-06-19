@@ -13,28 +13,23 @@ from world.tile import Tile
 MAPS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                         "assets", "maps")
 
-_GID_TYPE: dict[int, str] = {
-    1: "ground",
-    2: "spike",
-    3: "exit",
-    4: "switch_a",
-    5: "switch_b",
-}
+VALID_TILE_TYPES = ["ground", "spike", "exit", "switch_a", "switch_b", "gate"]
 
 
-def load_stage_tmx(stage_num: int) -> dict:
+def load_stage_tmx(stage_num):
     """stage{N}.tmx 를 읽어 tile 리스트 딕셔너리를 반환한다."""
     path = os.path.join(MAPS_DIR, f"stage{stage_num}.tmx")
     tmap = pytmx.TiledMap(path)
-    return _parse(tmap)
+    return parse_tmap(tmap)
 
 
-def _parse(tmap: pytmx.TiledMap) -> dict:
-    tiles:        list[Tile] = []
-    ground_tiles: list[Tile] = []
-    spike_tiles:  list[Tile] = []
-    exit_tiles:   list[Tile] = []
-    switch_tiles: list[Tile] = []
+def parse_tmap(tmap):
+    tiles = []
+    ground_tiles = []
+    spike_tiles = []
+    exit_tiles = []
+    switch_tiles = []
+    gate_tiles = []
 
     for layer in tmap.layers:
         if not isinstance(layer, pytmx.TiledTileLayer):
@@ -45,7 +40,7 @@ def _parse(tmap: pytmx.TiledMap) -> dict:
             # pytmx가 GID를 내부적으로 재매핑하므로 TSX 속성에서 type을 읽는다
             props = tmap.get_tile_properties_by_gid(gid) or {}
             tile_type = props.get("type")
-            if tile_type not in _GID_TYPE.values():
+            if tile_type not in VALID_TILE_TYPES:
                 continue
             t = Tile(col, row, tile_type)
             tiles.append(t)
@@ -55,8 +50,10 @@ def _parse(tmap: pytmx.TiledMap) -> dict:
                 spike_tiles.append(t)
             elif tile_type == "exit":
                 exit_tiles.append(t)
-            elif tile_type in ("switch_a", "switch_b"):
+            elif tile_type == "switch_a" or tile_type == "switch_b":
                 switch_tiles.append(t)
+            elif tile_type == "gate":
+                gate_tiles.append(t)
 
     return {
         "tiles":        tiles,
@@ -64,6 +61,7 @@ def _parse(tmap: pytmx.TiledMap) -> dict:
         "spike_tiles":  spike_tiles,
         "exit_tiles":   exit_tiles,
         "switch_tiles": switch_tiles,
+        "gate_tiles":   gate_tiles,
         "map_width":    tmap.width,
         "map_height":   tmap.height,
     }
