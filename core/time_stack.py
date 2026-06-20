@@ -13,16 +13,6 @@ class TimeStack:
             return self.history.pop()
         return None
 
-    def peek(self):
-        if len(self.history) > 0:
-            return self.history[-1]
-        return None
-
-    def is_empty(self):
-        return len(self.history) == 0
-
-    def clear(self):
-        self.history = []
-
+    # ai
     def __len__(self):
         return len(self.history)

@@ -5,10 +5,12 @@ from settings import SCREEN_WIDTH, SCREEN_HEIGHT
 _ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 
 
+# ai
 def _img(subpath: str) -> pygame.Surface:
     return pygame.image.load(os.path.join(_ASSETS, subpath)).convert_alpha()
 
 
+# ai
 def _cut(sheet: pygame.Surface, fw: int, fh: int) -> list:
     cols = sheet.get_width() // fw
     return [sheet.subsurface(pygame.Rect(i * fw, 0, fw, fh)) for i in range(cols)]

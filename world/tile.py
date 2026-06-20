@@ -14,6 +14,7 @@ class Tile:
         self.rect = pygame.Rect(col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE)
         self.activated = False  # 스위치 활성화 상태
 
+    # ai
     def draw(self, surface, camera_x=0, camera_y=0):
         draw_rect = self.rect.move(-camera_x, -camera_y)
         if self.tile_type == "ground":

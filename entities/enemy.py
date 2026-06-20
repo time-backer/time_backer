@@ -23,12 +23,15 @@ class Enemy:
 
     # ── 위치 ──────────────────────────────────────────────────────────────
 
+    # ai
     def get_x(self):
         return self.body.position.x - self.WIDTH / 2
 
+    # ai
     def get_y(self):
         return self.body.position.y - self.HEIGHT / 2
 
+    # ai
     def get_rect(self):
         return pygame.Rect(int(self.get_x()), int(self.get_y()), self.WIDTH, self.HEIGHT)
 
@@ -82,6 +85,7 @@ class Enemy:
 
     # ── 렌더링 ────────────────────────────────────────────────────────────
 
+    # ai
     def draw(self, surface, camera_x=0, camera_y=0):
         if not self.alive:
             return

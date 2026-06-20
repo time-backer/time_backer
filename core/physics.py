@@ -52,18 +52,23 @@ class PhysicsWorld:
         self.space.add(body, shape)
         return body
 
+    # ai
     def add_player_body(self, x, y, w, h):
         return self.add_dynamic_body(x, y, w, h, CT_PLAYER, FILTER_PLAYER)
 
+    # ai
     def add_enemy_body(self, x, y, w, h):
         return self.add_dynamic_body(x, y, w, h, CT_ENEMY, FILTER_ENEMY)
 
+    # ai
     def add_static_ground(self, x, y, w, h):
         self.make_static(x, y, w, h, FILTER_GROUND)
 
+    # ai
     def add_gate(self, x, y, w, h):
         return self.make_static(x, y, w, h, FILTER_DISABLED)
 
+    # ai
     def enable_gate(self, shape):
         shape.filter = FILTER_GROUND
 
@@ -77,10 +82,3 @@ class PhysicsWorld:
         shape.filter = filt
         self.space.add(body, shape)
         return shape
-
-    def remove_body(self, body):
-        for shape in list(body.shapes):
-            if shape in self.space.shapes:
-                self.space.remove(shape)
-        if body in self.space.bodies:
-            self.space.remove(body)

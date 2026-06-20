@@ -88,15 +88,18 @@ class GameScene:
 
     # ── 리셋 ─────────────────────────────────────────────────────────────
 
+    # ai
     def reset(self):
         self.__init__(self.stage_num)
 
     # ── 외부 접근 ─────────────────────────────────────────────────────────
 
+    # ai
     def get_clear_time(self):
         elapsed = pygame.time.get_ticks() - self.start_time - self.paused_time
         return elapsed // 1000
 
+    # ai
     def get_rewind_used(self):
         return MAX_REWIND_COUNT - self.rewind_count
 
@@ -213,6 +216,7 @@ class GameScene:
                 body.position = pymunk.Vec2d(body.position.x + overlap_x, body.position.y)
                 body.velocity = pymunk.Vec2d(max(0.0, body.velocity.x), body.velocity.y)
 
+    # ai
     def is_stomp(self, pr, player_vy, target_rect):
         return player_vy > 0 and pr.bottom < target_rect.centery + 10
 
@@ -234,6 +238,7 @@ class GameScene:
                 else:
                     self.player.take_damage()
 
+    # ai
     def activate_gates_if_ready(self):
         if self.gates_activated or not self.stage.are_all_switches_activated():
             return
@@ -271,6 +276,7 @@ class GameScene:
             if i < len(self.enemies):
                 self.enemies[i].apply_state(es)
 
+    # ai
     def can_rewind(self):
         return self.rewind_count > 0 and not self.rewinding and len(self.time_stack) > 0
 
@@ -286,9 +292,11 @@ class GameScene:
         self.flash_full = full
         self.rewind_start_time = pygame.time.get_ticks()
 
+    # ai
     def rewind_one(self):
         self.start_rewind(min(REWIND_FRAMES, len(self.time_stack)), False)
 
+    # ai
     def rewind_all(self):
         self.start_rewind(len(self.time_stack), True)
 
@@ -310,6 +318,7 @@ class GameScene:
 
     # ── 렌더링 ────────────────────────────────────────────────────────────
 
+    # ai
     def draw(self, surface):
         self.stage.draw(surface, 0, 0)
 
@@ -334,6 +343,7 @@ class GameScene:
 
     # ── HUD ──────────────────────────────────────────────────────────────
 
+    # ai
     def draw_hud(self, surface):
         pygame.draw.rect(surface, (10, 10, 25), (0, 0, SCREEN_WIDTH, 36))
 
@@ -367,6 +377,7 @@ class GameScene:
 
     # ── 시각 효과 ─────────────────────────────────────────────────────────
 
+    # ai
     def draw_rewind_flash(self, surface):
         ratio = self.flash_timer / REWIND_FLASH_DURATION
         A.rewind_overlay.set_alpha(int(200 * ratio))
@@ -379,6 +390,7 @@ class GameScene:
                 SCREEN_HEIGHT // 2 - banner.get_height() // 2,
             ))
 
+    # ai
     def draw_dev_panel(self, surface):
         panel_w, panel_h = 180, 180
         px = SCREEN_WIDTH // 2 - panel_w // 2
@@ -408,6 +420,7 @@ class GameScene:
         esc_hint = self.font_hud.render("ESC: close", True, (150, 150, 150))
         surface.blit(esc_hint, (px + panel_w // 2 - esc_hint.get_width() // 2, py + panel_h - 16))
 
+    # ai
     def draw_outcome_overlay(self, surface):
         surface.blit(self.outcome_overlay, (0, 0))
 

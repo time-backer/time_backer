@@ -27,9 +27,11 @@ class Stage:
 
     # ── 크기 ──────────────────────────────────────────────────────────────
 
+    # ai
     def get_pixel_width(self):
         return self.map_w * TILE_SIZE
 
+    # ai
     def get_pixel_height(self):
         return self.map_h * TILE_SIZE
 
@@ -51,6 +53,7 @@ class Stage:
             if player_rect.colliderect(sw.rect):
                 sw.activated = True
 
+    # ai
     def are_all_switches_activated(self):
         if not self.switch_tiles:
             return True
@@ -71,6 +74,7 @@ class Stage:
 
     # ── 렌더링 ────────────────────────────────────────────────────────────
 
+    # ai
     def draw(self, surface, camera_x=0, camera_y=0):
         surface.fill(SKY)
         for tile in self.tiles:

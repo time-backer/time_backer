@@ -16,6 +16,7 @@ class GameState:
         self.rewind_count = rewind_count
         self.enemies = []
 
+    # ai
     def copy(self):
         new_state = GameState(
             self.player_x,

@@ -35,6 +35,7 @@ class Boss:
         self.reverse_cooldown = 0
         self.reversing = False
 
+    # ai
     def get_rect(self):
         return pygame.Rect(int(self.x), int(self.y), self.WIDTH, self.HEIGHT)
 
@@ -57,10 +58,12 @@ class Boss:
             return True
         return False
 
+    # ai
     def cancel_reverse(self):
         if self.reversing:
             self.reversing = False
 
+    # ai
     def complete_reverse(self):
         if self.reversing:
             self.hp = min(self.hp + 3, self.MAX_HP)
@@ -101,6 +104,7 @@ class Boss:
         self.current_pattern = random.choice(patterns)
         self.pattern_active = True
 
+    # ai
     def get_phase_color(self):
         """Phase별 색상"""
         if self.phase == 1:
@@ -110,6 +114,7 @@ class Boss:
         else:
             return PURPLE
 
+    # ai
     def draw(self, surface, camera_x=0, camera_y=0):
         if not self.alive:
             return
@@ -140,6 +145,7 @@ class Boss:
         # HP 바 (화면 하단 중앙)
         self.draw_hp_bar(surface)
 
+    # ai
     def draw_hp_bar(self, surface):
         if Boss.font is None:
             Boss.font = pygame.font.SysFont(None, 16)

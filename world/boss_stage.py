@@ -10,6 +10,7 @@ class BossStage(Stage):
     def get_player_start(self):
         return (2 * TILE_SIZE, (self.map_h - 2) * TILE_SIZE - TILE_SIZE)
 
+    # ai
     def get_boss_position(self):
         return (12 * TILE_SIZE - 36, 6 * TILE_SIZE)
 
@@ -19,6 +20,7 @@ class BossStage(Stage):
     def is_clear(self, player_rect):
         return False
 
+    # ai
     def draw(self, surface, camera_x=0, camera_y=0):
         surface.fill((10, 10, 20))
         for tile in self.tiles:

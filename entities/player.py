@@ -24,18 +24,19 @@ class Player:
 
     # ── 위치·속도 (pymunk 바디에서 읽기) ──────────────────────────────────
 
+    # ai
     def get_x(self):
         return self.body.position.x - self.WIDTH / 2
 
+    # ai
     def get_y(self):
         return self.body.position.y - self.HEIGHT / 2
 
-    def get_vx(self):
-        return self.body.velocity.x / 60   # px/s → px/frame (호환용)
-
+    # ai
     def get_vy(self):
         return self.body.velocity.y / 60
 
+    # ai
     def get_rect(self):
         return pygame.Rect(int(self.get_x()), int(self.get_y()), self.WIDTH, self.HEIGHT)
 
@@ -57,6 +58,7 @@ class Player:
             self.body.velocity = pymunk.Vec2d(vx, JUMP_VY)
             self.on_ground = False   # 이 프레임 이중 점프 방지
 
+    # ai
     def clamp_to_stage(self, stage_width, stage_height):
         px, py = self.body.position
         vx, vy = self.body.velocity
@@ -79,16 +81,20 @@ class Player:
             self.hp -= 1
             self.hurt_timer = 60
 
+    # ai
     def tick_hurt(self):
         if self.hurt_timer > 0:
             self.hurt_timer -= 1
 
+    # ai
     def is_dead(self):
         return self.hp <= 0
 
+    # ai
     def set_bounce_velocity(self, vy):
         self.body.velocity = pymunk.Vec2d(self.body.velocity.x, vy)
 
+    # ai
     def grant_invincibility(self, frames=FPS):
         self.hurt_timer = frames
 
@@ -115,6 +121,7 @@ class Player:
 
     # ── 렌더링 ────────────────────────────────────────────────────────────
 
+    # ai
     def draw(self, surface, camera_x=0, camera_y=0, rewinding=False):
         if self.hurt_timer > 0 and (self.hurt_timer // 6) % 2 == 0:
             return
